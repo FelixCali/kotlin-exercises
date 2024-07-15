@@ -1,11 +1,20 @@
 package coroutines.sequences.prime
 
+import examples.generics.LinkedList
 import org.junit.Test
 import java.math.BigInteger
 import kotlin.test.assertEquals
 
 val primes: Sequence<BigInteger> = sequence {
-    TODO()
+    var current = BigInteger("2")
+    val previous = mutableListOf(current)
+    yield(current++)
+    while (true) {
+        if (previous.none { current.mod(it) == BigInteger.ZERO }) {
+            yield(current.also { previous.add(it) })
+        }
+        current++
+    }
 }
 
 class PrimesTest {
