@@ -16,7 +16,9 @@ var continuation: Continuation<String>? = null
 
 suspend fun continuationSteal(console: Console) {
     console.println("Before")
-    // TODO
+    console.println(suspendCancellableCoroutine<String> {
+        continuation = it
+    })
     console.println("After")
 }
 

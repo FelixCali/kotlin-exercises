@@ -1,5 +1,7 @@
 package coroutines.suspension.fetchtasksusecase
 
+import coroutines.examples.continuation
+import coroutines.examples.fetchUser
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.test.runCurrent
@@ -15,12 +17,27 @@ class FetchTasksUseCase(
     private val callbackUseCase: FetchTasksCallbackUseCase
 ) {
     @Throws(ApiException::class)
-    suspend fun fetchTasks(): List<Task> =
-        TODO()
-    suspend fun fetchTasksResult(): Result<List<Task>> =
-        TODO()
-    suspend fun fetchTasksOrNull(): List<Task>? =
-        TODO()
+    suspend fun fetchTasks(): List<Task> = suspendCancellableCoroutine { continuation ->
+        val cancellable = callbackUseCase.fetchTasks(
+            onError = continuation::resumeWithException,
+            onSuccess = continuation::resume
+        )
+        continuation.invokeOnCancellation { cancellable.cancel() }
+    }
+    suspend fun fetchTasksResult(): Result<List<Task>> = suspendCancellableCoroutine { continuation ->
+        val cancellable = callbackUseCase.fetchTasks(
+            onError = { error -> continuation.resume(Result.failure(error))},
+            onSuccess = { result -> continuation.resume(Result.success(result))}
+        )
+        continuation.invokeOnCancellation { cancellable.cancel() }
+    }
+    suspend fun fetchTasksOrNull(): List<Task>? = suspendCancellableCoroutine { continuation ->
+        val cancellable = callbackUseCase.fetchTasks(
+            onError = { continuation.resume(null) },
+            onSuccess = continuation::resume
+        )
+        continuation.invokeOnCancellation { cancellable.cancel() }
+    }
 }
 
 interface FetchTasksCallbackUseCase {
