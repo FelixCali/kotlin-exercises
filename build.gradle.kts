@@ -37,5 +37,5 @@ java.sourceSets["test"].java {
 }
 
 powerAssert {
-    functions = listOf("kotlin.assert", "kotlin.test.assertEquals")
+    functions = listOf("kotlin.assert")
 }

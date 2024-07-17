@@ -1,5 +1,6 @@
 package coroutines.comment.commentservice
 
+import coroutines.recipes.mapasync.mapAsync
 import domain.comment.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -15,10 +16,31 @@ class CommentService(
         collectionKey: String,
         body: AddComment
     ) {
-        TODO()
+        commentRepository.addComment(
+            commentFactory.toCommentDocument(
+                userId = userService.readUserId(token),
+                collectionKey = collectionKey,
+                body = body
+            )
+        )
     }
 
     suspend fun getComments(
         collectionKey: String
-    ): CommentsCollection = TODO()
+    ): CommentsCollection {
+        return CommentsCollection(
+            collectionKey = collectionKey,
+            elements = commentRepository
+                .getComments(collectionKey)
+                .mapAsync {
+                    CommentElement(
+                        id = it._id,
+                        collectionKey = it.collectionKey,
+                        user = userService.findUserById(it.userId),
+                        comment = it.comment,
+                        date = it.date
+                    )
+                }
+        )
+    }
 }

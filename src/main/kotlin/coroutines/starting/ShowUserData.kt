@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import kotlin.coroutines.suspendCoroutine
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -12,7 +13,22 @@ class ShowUserDataUseCase(
     private val view: UserDataView,
     private val notificationScope: CoroutineScope,
 ) {
-    suspend fun show() {}
+    suspend fun show() {
+        val user = coroutineScope<User> {
+            val name = async { repo.getName() }
+            val friends = async { repo.getFriends() }
+            val profile = async { repo.getProfile() }
+            User(
+                name.await(),
+                friends.await(),
+                profile.await()
+            )
+        }
+        view.show(user)
+        notificationScope.launch {
+            repo.notifyProfileShown()
+        }
+    }
 }
 
 interface UserDataRepository {
