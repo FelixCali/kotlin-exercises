@@ -11,9 +11,17 @@ import kotlin.test.assertTrue
 abstract class BasePresenter(
     private val onError: (Throwable) -> Unit = {}
 ) {
-    val scope: CoroutineScope = TODO()
+    val scope: CoroutineScope = CoroutineScope(
+        SupervisorJob()
+        + Dispatchers.Main
+        + CoroutineExceptionHandler{ _, e ->
+            onError(e)
+        }
+    )
 
-    fun onDestroy() {}
+    fun onDestroy() {
+        scope.coroutineContext.cancelChildren()
+    }
 }
 
 class MainPresenter(
