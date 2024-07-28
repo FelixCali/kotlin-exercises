@@ -1,11 +1,14 @@
 package effective.safe.companydetailsrepository
 
+import coroutines.recipes.suspendlazy.SuspendLazy
+import coroutines.recipes.suspendlazy.suspendLazy
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import java.math.BigDecimal
 import org.junit.Ignore      
 import org.junit.Test
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.assertEquals
 import kotlin.time.measureTime
 
@@ -13,23 +16,19 @@ class CompanyDetailsRepository(
     private val client: CompanyDetailsClient,
     dispatcher: CoroutineDispatcher
 ) {
-    private val details = mutableMapOf<Company, CompanyDetails>()
+    private val details = ConcurrentHashMap<Company, SuspendLazy<CompanyDetails>>()
 
     suspend fun getDetails(company: Company): CompanyDetails {
-        val current = getDetailsOrNull(company)
-        if (current == null) {
-            val companyDetails = client.fetchDetails(company)
-            details[company] = companyDetails
-            return companyDetails
-        }
-        return current
+        return details.computeIfAbsent(company) {
+            suspendLazy { client.fetchDetails(company) }
+        }.invoke()
     }
 
     fun getDetailsOrNull(company: Company): CompanyDetails? = 
-        details[company]
+        details[company]?.valueOrNull()
 
     fun getReadyDetails(): Map<Company, CompanyDetails> =
-        details
+        details.filter { it.value.isInitialized }.mapValues { it.value.valueOrNull()!! }
     
     fun clear() {
         details.clear()
@@ -271,7 +270,6 @@ class CompanyDetailsRepositoryTest {
     }
 
     @Test
-    @Ignore
     fun `should not fetch the same details twice`() = runTest {
         val company = Company("1")
         val details = CompanyDetails("Company", "Address", BigDecimal.TEN)

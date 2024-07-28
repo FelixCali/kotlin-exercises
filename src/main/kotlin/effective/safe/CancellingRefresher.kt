@@ -9,6 +9,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
@@ -21,7 +23,9 @@ class CancellingRefresher(
 ) {
     private var refreshJob: Job? = null
 
-    fun refresh() {
+    private val mutex = Mutex()
+
+    suspend fun refresh() = mutex.withLock {
         refreshJob?.cancel()
         refreshJob = scope.launch {
             refreshData()

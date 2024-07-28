@@ -12,8 +12,22 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-fun <T> suspendLazy(initializer: suspend () -> T):SuspendLazy<T> =
-    TODO()
+fun <T> suspendLazy(initializer: suspend () -> T):SuspendLazy<T> = object : SuspendLazy<T> {
+    private val mutex = Mutex()
+    private var value: T? = null
+
+
+    override val isInitialized: Boolean
+        get() = value != null
+
+    override fun valueOrNull(): T? = value
+
+    override suspend fun invoke(): T = mutex.withLock{
+        value ?: initializer().also { value = it }
+    }
+
+}
+
 
 interface SuspendLazy<T> : suspend () -> T {
     val isInitialized: Boolean

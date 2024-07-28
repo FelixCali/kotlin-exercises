@@ -19,10 +19,11 @@ class FakeNetworkService : NetworkService {
 
 class UserDownloader(private val api: NetworkService) {
     private val users = mutableListOf<User>()
+    private val dispatcher = Dispatchers.IO.limitedParallelism(1)
 
     fun downloaded(): List<User> = users.toList()
 
-    suspend fun getUser(id: Int) {
+    suspend fun getUser(id: Int) = withContext(dispatcher){
         val newUser = api.getUser(id)
         users += newUser
     }
