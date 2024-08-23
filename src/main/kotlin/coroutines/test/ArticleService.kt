@@ -2,7 +2,12 @@ package coroutines.test.articleservice
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.currentTime
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
 import java.time.LocalDateTime
+import kotlin.test.assertEquals
 
 class ArticleService(
     private val articleRepository: ArticleRepository,
@@ -61,4 +66,36 @@ data class Article(
 
 data class Date(val toEpochSecond: () -> Long)
 
-// TODO
+class FakeArticleRepository : ArticleRepository {
+    override suspend fun getArticles(): List<Article> {
+        delay(1000)
+        return emptyList()
+    }
+}
+
+class FakeUserService(private val userToReturn: User?) : UserService {
+    override suspend fun findUser(requestAuth: RequestAuth?): User? {
+        delay(1000)
+        return userToReturn
+    }
+}
+
+class FakeTimeProvider : TimeProvider {
+    override fun now(): LocalDateTime {
+        return LocalDateTime.now()
+    }
+}
+
+class ArticleServiceTest {
+
+    @Test
+    fun shouldFetchAsync() = runTest {
+        val articleService = ArticleService(
+            FakeArticleRepository(),
+            FakeUserService(null),
+            FakeTimeProvider()
+        )
+        articleService.getArticles()
+        assertEquals(1000, currentTime)
+    }
+}

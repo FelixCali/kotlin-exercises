@@ -1,9 +1,10 @@
 package coroutines.test.notificationsendertest
 
 import kotlinx.coroutines.*
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.*
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class NotificationSender(
     private val client: NotificationClient,
@@ -41,26 +42,101 @@ interface ExceptionCollector {
     fun collectException(throwable: Throwable)
 }
 
+@OptIn(ExperimentalStdlibApi::class)
 class NotificationSenderTest {
-
     @Test
-    fun `should send notifications concurrently`() {
-        // TODO
+    fun `should send notifications concurrently`() = runTest {
+        // given
+        val notifications = listOf(
+            Notification("1"),
+            Notification("2"),
+            Notification("3")
+        )
+        val client = FakeNotificationClient(1000)
+        val sender = NotificationSender(
+            client,
+            FakeExceptionCollector(),
+            this.coroutineContext[CoroutineDispatcher]!!
+        )
+
+        // when
+        sender.sendNotifications(notifications)
+        advanceUntilIdle()
+
+        // then
+        assertEquals(notifications, client.sent)
+        assertEquals(1000, currentTime)
     }
 
     @Test
-    fun `should cancel all coroutines when cancel is called`() {
-        // TODO
+    fun `should cancel all coroutines when cancel is called`() = runTest {
+        // given
+        val sender = NotificationSender(
+            FakeNotificationClient(),
+            FakeExceptionCollector(),
+            this.coroutineContext[CoroutineDispatcher]!!
+        )
+
+        // when
+        sender.sendNotifications(listOf(
+            Notification("1"),
+            Notification("2"),
+            Notification("3")
+        ))
+        delay(500)
+        sender.cancel()
+
+        // then
+        val children = sender.scope.coroutineContext.job.children
+        children.forEach { assertTrue { it.isCancelled } }
+        advanceUntilIdle()
+        assertEquals(500, currentTime)
     }
 
     @Test
-    fun `should not cancel other sending processes when one of them fails`() {
-        // TODO
+    fun `should not cancel other sending processes when one of them fails`() = runTest {
+        // given
+        val client = FakeNotificationClient(1000, 2)
+        val sender = NotificationSender(
+            client,
+            FakeExceptionCollector(),
+            this.coroutineContext[CoroutineDispatcher]!!
+        )
+
+        // when
+        sender.sendNotifications(listOf(
+            Notification("1"),
+            Notification("2"),
+            Notification("3")
+        ))
+        advanceUntilIdle()
+
+        // then
+        assertEquals(1000, currentTime)
+        assertEquals(listOf(Notification("1"), Notification("3")), client.sent)
     }
 
     @Test
-    fun `should collect exceptions from all coroutines`() {
-        // TODO
+    fun `should collect exceptions from all coroutines`() = runTest {
+        // given
+        val exceptionCollector = FakeExceptionCollector()
+        val sender = NotificationSender(
+            FakeNotificationClient(1000, 2),
+            exceptionCollector,
+            this.coroutineContext[CoroutineDispatcher]!!
+        )
+
+        // when
+        sender.sendNotifications(listOf(
+            Notification("1"),
+            Notification("2"),
+            Notification("3")
+        ))
+        advanceUntilIdle()
+
+        // then
+        assertEquals(1000, currentTime)
+        assertEquals(1, exceptionCollector.collected.size)
     }
 }
 
